@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>VEIL — Bridal Veil Controller</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --pink: #FF2D87;
+    --pink-dim: #CC1F6A;
+    --pink-glow: rgba(255, 45, 135, 0.3);
+    --cyan: #00F5FF;
+    --cyan-dim: rgba(0, 245, 255, 0.15);
+    --black: #050506;
+    --surface: #0D0C10;
+    --surface2: #141219;
+    --surface3: #1C1A22;
+    --border: rgba(255, 255, 255, 0.07);
+    --border-bright: rgba(255, 45, 135, 0.35);
+    --text: #F0EDF5;
+    --muted: #6B6578;
+    --muted2: #948CA0;
+    --green: #39FF88;
+    --orange: #FF8C2D;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .phone-frame {
+    width: 100%;
+    max-width: 390px;
+    min-height: 100vh;
+    background: var(--black);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── NOISE TEXTURE ── */
+  .phone-frame::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    width: 390px;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.6;
+  }
+
+  /* ── STATUS BAR ── */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 24px 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted2);
+    letter-spacing: 0.04em;
+  }
+  .status-time { font-size: 13px; font-weight: 700; color: var(--text); }
+  .status-icons { display: flex; gap: 6px; align-items: center; }
+  .status-icons svg { width: 14px; height: 14px; }
+  .signal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-green 2s ease-in-out infinite; }
+  @keyframes pulse-green { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ── TOP NAV ── */
+  .top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 24px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { font-size: 20px; font-weight: 700; letter-spacing: 0.22em; color: var(--text); }
+  .brand span { color: var(--pink); }
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+  .battery-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+  }
+  .battery-bar {
+    width: 24px; height: 10px;
+    border: 1.5px solid var(--green);
+    border-radius: 2px;
+    position: relative;
+  }
+  .battery-bar::after {
+    content: '';
+    position: absolute;
+    right: -4px; top: 50%;
+    transform: translateY(-50%);
+    width: 2px; height: 5px;
+    background: var(--green);
+    border-radius: 0 1px 1px 0;
+  }
+  .battery-fill {
+    height: 100%;
+    width: 78%;
+    background: var(--green);
+    border-radius: 1px;
+    box-shadow: 0 0 4px var(--green);
+  }
+  .notif-dot {
+    width: 8px; height: 8px;
+    background: var(--pink);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--pink);
+  }
+
+  /* ── SCROLL CONTAINER ── */
+  .scroll-body {
+    overflow-y: auto;
+    padding-bottom: 100px;
+    scrollbar-width: none;
+  }
+  .scroll-body::-webkit-scrollbar { display: none; }
+
+  /* ── FACE PREVIEW ── */
+  .face-section {
+    padding: 20px 24px 0;
+  }
+  .face-label {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .face-label-text { font-size: 10px; font-weight: 600; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; }
+  .status-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--green);
+    letter-spacing: 0.08em;
+  }
+  .status-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); box-shadow: 0 0 5px var(--green); animation: pulse-green 1.5s ease-in-out infinite; }
+
+  .face-preview {
+    width: 100%;
+    aspect-ratio: 3/4;
+    max-height: 260px;
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border-bright);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(255, 45, 135, 0.12), inset 0 0 40px rgba(0,0,0,0.6);
+  }
+
+  /* Halftone face simulation */
+  .face-canvas {
+    width: 100%; height: 100%;
+    position: relative;
+  }
+  canvas#halftone {
+    width: 100%; height: 100%;
+    display: block;
+  }
+
+  /* Scan line overlay */
+  .scanlines {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.12) 2px,
+      rgba(0, 0, 0, 0.12) 4px
+    );
+    pointer-events: none;
+  }
+
+  /* Glitch overlay */
+  .glitch-overlay {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, 
+      transparent 0%, 
+      rgba(255,45,135,0.04) 30%, 
+      transparent 60%,
+      rgba(0,245,255,0.03) 80%,
+      transparent 100%
+    );
+  }
+
+  /* Corner brackets */
+  .corner { position: absolute; width: 18px; height: 18px; }
+  .corner-tl { top: 10px; left: 10px; border-top: 1.5px solid var(--pink); border-left: 1.5px solid var(--pink); }
+  .corner-tr { top: 10px; right: 10px; border-top: 1.5px solid var(--pink); border-right: 1.5px solid var(--pink); }
+  .corner-bl { bottom: 10px; left: 10px; border-bottom: 1.5px solid var(--cyan); border-left: 1.5px solid var(--cyan); }
+  .corner-br { bottom: 10px; right: 10px; border-bottom: 1.5px solid var(--cyan); border-right: 1.5px solid var(--cyan); }
+
+  /* HUD readouts */
+  .hud-tl {
+    position: absolute; top: 18px; left: 18px;
+    font-family: 'Space Mono', monospace;
+    font-size: 8px; color: var(--pink); letter-spacing: 0.12em;
+    text-shadow: 0 0 6px var(--pink);
+    line-height: 1.6;
+  }
+  .hud-br {
+    position: absolute; bottom: 18px; right: 18px;
+    font-family: 'Space Mono', monospace;
+    font-size: 8px; color: var(--cyan); letter-spacing: 0.08em;
+    text-align: right;
+    text-shadow: 0 0 6px var(--cyan);
+    line-height: 1.6;
+  }
+  .hud-center-label {
+    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; color: rgba(255,255,255,0.4);
+    letter-spacing: 0.14em;
+    white-space: nowrap;
+  }
+
+  /* ── MODE SELECTOR ── */
+  .section { padding: 20px 24px 0; }
+  .section-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+  .section-title {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.2em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .section-action {
+    font-size: 10px; color: var(--pink); letter-spacing: 0.06em; cursor: pointer;
+  }
+
+  .mode-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .mode-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .mode-card.active {
+    border-color: var(--pink);
+    background: rgba(255, 45, 135, 0.08);
+    box-shadow: 0 0 16px rgba(255,45,135,0.15);
+  }
+  .mode-card:active { transform: scale(0.97); }
+  .mode-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .mode-card.active .mode-icon { box-shadow: 0 0 12px rgba(255,45,135,0.4); }
+  .mode-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .mode-desc { font-size: 10px; color: var(--muted2); line-height: 1.4; }
+  .mode-active-pip {
+    position: absolute; top: 10px; right: 10px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--pink); box-shadow: 0 0 6px var(--pink);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .mode-card.active .mode-active-pip { opacity: 1; }
+
+  /* ── INTENSITY SLIDER ── */
+  .slider-section { padding: 20px 24px 0; }
+  .slider-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .slider-label { font-size: 10px; font-weight: 600; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; }
+  .slider-value { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--pink); font-weight: 700; }
+
+  .custom-slider {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--surface3);
+    outline: none;
+    cursor: pointer;
+    position: relative;
+  }
+  .custom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--pink);
+    box-shadow: 0 0 10px var(--pink-glow), 0 0 20px rgba(255,45,135,0.2);
+    cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.2);
+  }
+  .slider-track-bg {
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--pink) 0%, var(--pink) var(--fill), var(--surface3) var(--fill));
+    border-radius: 2px;
+    margin-bottom: 10px;
+    position: relative;
+    cursor: pointer;
+  }
+  .slider-thumb {
+    position: absolute;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--pink);
+    box-shadow: 0 0 12px var(--pink-glow);
+    top: 50%; transform: translate(-50%, -50%);
+    cursor: grab;
+    border: 2px solid rgba(255,255,255,0.25);
+    transition: box-shadow 0.15s;
+  }
+  .slider-thumb:active { cursor: grabbing; box-shadow: 0 0 20px var(--pink); }
+
+  /* ── COLOUR PICKER ── */
+  .color-row {
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .color-swatch {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .color-swatch.active {
+    border-color: var(--text);
+    box-shadow: 0 0 12px var(--pink-glow);
+  }
+  .color-swatch:active { transform: scale(0.9); }
+  .color-swatch::after {
+    content: '';
+    position: absolute; inset: 3px;
+    border-radius: 50%;
+    background: inherit;
+  }
+
+  /* ── STATS ROW ── */
+  .stats-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 12px;
+    text-align: center;
+  }
+  .stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px; font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 5px;
+  }
+  .stat-value.green { color: var(--green); text-shadow: 0 0 8px rgba(57,255,136,0.4); }
+  .stat-value.pink { color: var(--pink); text-shadow: 0 0 8px var(--pink-glow); }
+  .stat-value.orange { color: var(--orange); }
+  .stat-label { font-size: 9px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+
+  /* ── THREAT METER ── */
+  .threat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .threat-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+  .threat-label { font-size: 10px; font-weight: 600; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; }
+  .threat-level-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; letter-spacing: 0.1em;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 700;
+  }
+  .threat-level-badge.low { color: var(--green); background: rgba(57,255,136,0.1); border: 1px solid rgba(57,255,136,0.3); }
+  .threat-level-badge.mid { color: var(--orange); background: rgba(255,140,45,0.1); border: 1px solid rgba(255,140,45,0.3); }
+  .threat-level-badge.high { color: var(--pink); background: rgba(255,45,135,0.1); border: 1px solid var(--border-bright); }
+
+  .threat-bars {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .threat-bar-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .threat-bar-label {
+    font-size: 10px; color: var(--muted2); letter-spacing: 0.04em;
+    width: 100px; flex-shrink: 0;
+    font-family: 'Space Mono', monospace;
+  }
+  .threat-bar-track {
+    flex: 1; height: 4px;
+    background: var(--surface3);
+    border-radius: 2px; overflow: hidden;
+  }
+  .threat-bar-fill {
+    height: 100%; border-radius: 2px;
+    transition: width 1s ease;
+  }
+  .threat-bar-fill.low { background: var(--green); box-shadow: 0 0 4px var(--green); }
+  .threat-bar-fill.mid { background: var(--orange); }
+  .threat-bar-fill.high { background: var(--pink); box-shadow: 0 0 4px var(--pink); }
+  .threat-bar-pct {
+    font-family: 'Space Mono', monospace; font-size: 9px;
+    color: var(--muted2); width: 28px; text-align: right;
+  }
+
+  /* ── TOGGLE ROW ── */
+  .toggle-list { display: flex; flex-direction: column; gap: 2px; }
+  .toggle-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-info {}
+  .toggle-name { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .toggle-sub { font-size: 10px; color: var(--muted2); }
+  .toggle-switch {
+    width: 44px; height: 24px;
+    background: var(--surface3);
+    border-radius: 12px;
+    position: relative; cursor: pointer;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    transition: background 0.25s, border-color 0.25s;
+  }
+  .toggle-switch.on {
+    background: rgba(255,45,135,0.25);
+    border-color: var(--pink);
+  }
+  .toggle-knob {
+    width: 18px; height: 18px;
+    background: var(--muted);
+    border-radius: 50%;
+    position: absolute; top: 2px; left: 2px;
+    transition: transform 0.25s, background 0.25s, box-shadow 0.25s;
+  }
+  .toggle-switch.on .toggle-knob {
+    transform: translateX(20px);
+    background: var(--pink);
+    box-shadow: 0 0 8px var(--pink-glow);
+  }
+
+  /* ── HISTORY LOG ── */
+  .log-list { display: flex; flex-direction: column; gap: 6px; }
+  .log-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .log-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    margin-top: 4px; flex-shrink: 0;
+  }
+  .log-dot.green { background: var(--green); box-shadow: 0 0 4px var(--green); }
+  .log-dot.pink { background: var(--pink); box-shadow: 0 0 4px var(--pink); }
+  .log-dot.muted { background: var(--muted); }
+  .log-text { font-size: 11px; color: var(--muted2); line-height: 1.45; flex: 1; }
+  .log-text strong { color: var(--text); font-weight: 600; }
+  .log-time { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 390px;
+    background: rgba(5, 5, 6, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-around;
+    padding: 10px 0 28px;
+    z-index: 100;
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    cursor: pointer; padding: 0 16px;
+    opacity: 0.45;
+    transition: opacity 0.2s;
+  }
+  .nav-item.active { opacity: 1; }
+  .nav-item svg { width: 22px; height: 22px; }
+  .nav-item .nav-label { font-size: 9px; letter-spacing: 0.1em; color: var(--muted2); text-transform: uppercase; }
+  .nav-item.active .nav-label { color: var(--pink); }
+  .nav-item.active svg path, .nav-item.active svg circle, .nav-item.active svg rect { stroke: var(--pink) !important; }
+
+  /* ── CONNECT SCREEN ── */
+  .connect-banner {
+    margin: 16px 24px 0;
+    background: rgba(0, 245, 255, 0.05);
+    border: 1px solid rgba(0, 245, 255, 0.2);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .connect-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--cyan-dim);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+  }
+  .connect-text { flex: 1; }
+  .connect-title { font-size: 12px; font-weight: 600; color: var(--cyan); margin-bottom: 2px; }
+  .connect-sub { font-size: 10px; color: var(--muted2); }
+  .connect-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; font-weight: 700;
+    color: var(--black);
+    background: var(--cyan);
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+  .connect-btn:active { opacity: 0.7; }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px; background: var(--border);
+    margin: 20px 24px 0;
+  }
+
+  /* ── GLITCH TEXT EFFECT ── */
+  .glitch-text {
+    position: relative;
+    display: inline-block;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in { animation: fadeSlideUp 0.4s ease both; }
+
+  /* Stagger */
+  .delay-1 { animation-delay: 0.05s; }
+  .delay-2 { animation-delay: 0.1s; }
+  .delay-3 { animation-delay: 0.15s; }
+  .delay-4 { animation-delay: 0.2s; }
+  .delay-5 { animation-delay: 0.25s; }
+
+  /* scanning line */
+  @keyframes scan {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+  }
+  .scan-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255,45,135,0.5), transparent);
+    pointer-events: none;
+    animation: scan 3s linear infinite;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <span class="status-time">09:41</span>
+    <div class="status-icons">
+      <div class="signal-dot"></div>
+      <span style="font-size:10px;letter-spacing:0.06em">VEIL OS 2.7</span>
+    </div>
+  </div>
+
+  <!-- TOP NAV -->
+  <div class="top-nav fade-in">
+    <div class="brand">V<span>E</span>IL</div>
+    <div class="nav-right">
+      <div class="battery-pill">
+        <div class="battery-bar"><div class="battery-fill"></div></div>
+        <span>78%</span>
+      </div>
+      <div class="notif-dot"></div>
+    </div>
+  </div>
+
+  <div class="scroll-body">
+
+    <!-- CONNECTED DEVICE BANNER -->
+    <div class="connect-banner fade-in delay-1">
+      <div class="connect-icon">◈</div>
+      <div class="connect-text">
+        <div class="connect-title">BRIDAL VEIL MK.III</div>
+        <div class="connect-sub">Connected via NeuralMesh™ · 2m range</div>
+      </div>
+      <button class="connect-btn">SYNCED</button>
+    </div>
+
+    <!-- FACE PREVIEW -->
+    <div class="face-section fade-in delay-2">
+      <div class="face-label">
+        <span class="face-label-text">Live Projection Preview</span>
+        <div class="status-badge"><div class="dot"></div>ACTIVE</div>
+      </div>
+      <div class="face-preview">
+        <div class="scan-line"></div>
+        <canvas id="halftone"></canvas>
+        <div class="scanlines"></div>
+        <div class="glitch-overlay"></div>
+        <div class="corner corner-tl"></div>
+        <div class="corner corner-tr"></div>
+        <div class="corner corner-bl"></div>
+        <div class="corner corner-br"></div>
+        <div class="hud-tl" id="hud-tl">MODE: ALTER<br>SYNC: 99.2%<br>FPS: 120</div>
+        <div class="hud-br" id="hud-br">TEMP: 36.2°C<br>LAT: 0.4ms<br>ΘLOCK: ON</div>
+        <div class="hud-center-label">FACE SHIELD ACTIVE</div>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="section fade-in delay-3">
+      <div class="stats-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="stat-card">
+          <div class="stat-value pink">78%</div>
+          <div class="stat-label">Device Power</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value orange">2.1h</div>
+          <div class="stat-label">Time Active</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- THREAT METER -->
+    <div class="section fade-in delay-3">
+      <div class="threat-card">
+        <div class="threat-header">
+          <span class="threat-label">Environment Threat Level</span>
+          <span class="threat-level-badge low" id="threat-badge">LOW</span>
+        </div>
+        <div class="threat-bars">
+          <div class="threat-bar-row">
+            <span class="threat-bar-label">CCTV Density</span>
+            <div class="threat-bar-track"><div class="threat-bar-fill low" style="width:24%"></div></div>
+            <span class="threat-bar-pct">24%</span>
+          </div>
+          <div class="threat-bar-row">
+            <span class="threat-bar-label">FR Scan Rate</span>
+            <div class="threat-bar-track"><div class="threat-bar-fill mid" style="width:61%"></div></div>
+            <span class="threat-bar-pct">61%</span>
+          </div>
+          <div class="threat-bar-row">
+            <span class="threat-bar-label">Gait Tracking</span>
+            <div class="threat-bar-track"><div class="threat-bar-fill low" style="width:18%"></div></div>
+            <span class="threat-bar-pct">18%</span>
+          </div>
+          <div class="threat-bar-row">
+            <span class="threat-bar-label">Neural Probe</span>
+            <div class="threat-bar-track"><div class="threat-bar-fill low" style="width:5%"></div></div>
+            <span class="threat-bar-pct">5%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROJECTION MODE -->
+    <div class="section fade-in delay-3">
+      <div class="section-head">
+        <span class="section-title">Projection Mode</span>
+        <span class="section-action" onclick="openCustom()">+ Custom</span>
+      </div>
+      <div class="mode-grid" id="mode-grid">
+        <div class="mode-card active" data-mode="alter" onclick="selectMode(this,'ALTER','alter')">
+          <div class="mode-active-pip"></div>
+          <div class="mode-icon" style="background:rgba(255,45,135,0.15);">👤</div>
+          <div class="mode-name">ALTER</div>
+          <div class="mode-desc">Synthetic face overlay — socially readable</div>
+        </div>
+        <div class="mode-card" data-mode="type" onclick="selectMode(this,'TYPE','type')">
+          <div class="mode-active-pip"></div>
+          <div class="mode-icon" style="background:rgba(0,245,255,0.1);">⌨</div>
+          <div class="mode-name">TYPE</div>
+          <div class="mode-desc">Typographic field — text as face</div>
+        </div>
+        <div class="mode-card" data-mode="colour" onclick="selectMode(this,'COLOUR','colour')">
+          <div class="mode-active-pip"></div>
+          <div class="mode-icon" style="background:rgba(147,51,234,0.15);">◉</div>
+          <div class="mode-name">COLOUR</div>
+          <div class="mode-desc">Solid light wash — presence, no profile</div>
+        </div>
+        <div class="mode-card" data-mode="generative" onclick="selectMode(this,'GEN','generative')">
+          <div class="mode-active-pip"></div>
+          <div class="mode-icon" style="background:rgba(57,255,136,0.1);">⬡</div>
+          <div class="mode-name">GENERATIVE</div>
+          <div class="mode-desc">Motion-synced pattern — never same twice</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROJECTION COLOUR -->
+    <div class="section fade-in delay-4">
+      <div class="section-head">
+        <span class="section-title">Projection Colour</span>
+        <span class="section-action section-color-val" id="color-val">#FF2D87</span>
+      </div>
+      <div class="color-row">
+        <div class="color-swatch active" style="background:#FF2D87" onclick="selectColor(this,'#FF2D87')"></div>
+        <div class="color-swatch" style="background:#00F5FF" onclick="selectColor(this,'#00F5FF')"></div>
+        <div class="color-swatch" style="background:#9333EA" onclick="selectColor(this,'#9333EA')"></div>
+        <div class="color-swatch" style="background:#39FF88" onclick="selectColor(this,'#39FF88')"></div>
+        <div class="color-swatch" style="background:#FF8C2D" onclick="selectColor(this,'#FF8C2D')"></div>
+        <div class="color-swatch" style="background:#FFFFFF" onclick="selectColor(this,'#FFFFFF')"></div>
+        <div class="color-swatch" style="background: conic-gradient(red,orange,yellow,green,blue,violet,red); border-color: rgba(255,255,255,0.3);" onclick="selectColor(this,'MULTI')"></div>
+      </div>
+    </div>
+
+    <!-- INTENSITY -->
+    <div class="slider-section fade-in delay-4">
+      <div class="slider-row">
+        <span class="slider-label">Projection Intensity</span>
+        <span class="slider-value" id="intensity-val">82%</span>
+      </div>
+      <div class="slider-track-bg" id="intensity-track" style="--fill:82%" onclick="scrubSlider(event,'intensity')">
+        <div class="slider-thumb" id="intensity-thumb" style="left:82%"></div>
+      </div>
+    </div>
+
+    <div class="slider-section fade-in delay-4">
+      <div class="slider-row">
+        <span class="slider-label">Motion Sync Sensitivity</span>
+        <span class="slider-value" id="sync-val">65%</span>
+      </div>
+      <div class="slider-track-bg" id="sync-track" style="--fill:65%" onclick="scrubSlider(event,'sync')">
+        <div class="slider-thumb" id="sync-thumb" style="left:65%"></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- SETTINGS TOGGLES -->
+    <div class="section fade-in delay-4">
+      <div class="section-head"><span class="section-title">Device Settings</span></div>
+      <div class="toggle-list">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-name">Auto-Intensify in Crowds</div>
+            <div class="toggle-sub">Increases power when CCTV density rises above 40%</div>
+          </div>
+          <div class="toggle-switch on" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-name">Expression Mirroring</div>
+            <div class="toggle-sub">Syncs projection to IR-mapped microexpressions</div>
+          </div>
+          <div class="toggle-switch on" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-name">Stealth Mode</div>
+            <div class="toggle-sub">Remove all visible light — defeats IR cameras</div>
+          </div>
+          <div class="toggle-switch" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-name">Haptic Alerts</div>
+            <div class="toggle-sub">Vibrate on high-confidence recognition attempt</div>
+          </div>
+          <div class="toggle-switch on" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-name">Session Logging</div>
+            <div class="toggle-sub">Store anonymised activity on-device only</div>
+          </div>
+          <div class="toggle-switch" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ACTIVITY LOG -->
+    <div class="section fade-in delay-5">
+      <div class="section-head">
+        <span class="section-title">Activity Log</span>
+        <span class="section-action">Clear</span>
+      </div>
+      <div class="log-list" id="log-list">
+        <div class="log-item">
+          <div class="log-dot green"></div>
+          <div class="log-text">
+            <strong>Recognition defeated</strong> — City Council CCTV node 7 failed identification at Queen St. Projection held at 82%.
+            <div class="log-time">09:38 · ALTER mode</div>
+          </div>
+        </div>
+        <div class="log-item">
+          <div class="log-dot pink"></div>
+          <div class="log-text">
+            <strong>High scan rate detected</strong> — FR density spike near Britomart Station. Auto-intensify engaged.
+            <div class="log-time">09:31 · Auto-response</div>
+          </div>
+        </div>
+        <div class="log-item">
+          <div class="log-dot green"></div>
+          <div class="log-text">
+            <strong>Recognition defeated</strong> — Retail sensor array at Westfield Level 2. Profile not formed.
+            <div class="log-time">09:14 · ALTER mode</div>
+          </div>
+        </div>
+        <div class="log-item">
+          <div class="log-dot muted"></div>
+          <div class="log-text">
+            <strong>Device connected</strong> — Bridal Veil MK.III paired. Calibration complete.
+            <div class="log-time">09:02 · Boot</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM PADDING SPACER -->
+    <div style="height:20px"></div>
+
+  </div><!-- end scroll-body -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <div class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span class="nav-label">Control</span>
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="white" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="white" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="white" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="white" stroke-width="1.5"/></svg>
+      <span class="nav-label">Designs</span>
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L15 8.5H21L16.5 12.5L18 19L12 15.5L6 19L7.5 12.5L3 8.5H9L12 2Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      <span class="nav-label">Threats</span>
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span class="nav-label">Profile</span>
+    </div>
+  </nav>
+
+</div><!-- end phone-frame -->
+
+<script>
+// ── HALFTONE CANVAS ─────────────────────────────────────────────────────────
+const canvas = document.getElementById('halftone');
+const ctx = canvas.getContext('2d');
+let animFrame;
+let currentColor = '#FF2D87';
+let currentMode = 'alter';
+let intensity = 0.82;
+let tick = 0;
+
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+
+function hexToRgb(hex) {
+  if (hex === 'MULTI') return {r:255,g:45,b:135};
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return {r,g,b};
+}
+
+// Returns 0..1 brightness value at (x,y) based on a stylised feminine face silhouette
+function getFaceMask(x, y, w, h) {
+  // Normalise to -1..1 space centred on face
+  const cx = w * 0.5;
+  const cy = h * 0.44;
+  const scaleX = w * 0.30;
+  const scaleY = h * 0.36;
+  const nx = (x - cx) / scaleX;
+  const ny = (y - cy) / scaleY;
+
+  // ── HAIR ──
+  // Long flowing hair: wide ellipse above + sides
+  const hairTopY = -1.05;
+  const hairWidth = 1.18;
+  const inHairEllipse = (nx*nx)/(hairWidth*hairWidth) + ((ny - hairTopY + 0.6)*(ny - hairTopY + 0.6))/(1.1*1.1);
+  // Side hair draping down
+  const inLeftHair  = nx < -0.78 && ny > -0.6 && ny < 1.0 && nx > -1.3;
+  const inRightHair = nx >  0.78 && ny > -0.6 && ny < 1.0 && nx <  1.3;
+  const inHair = inHairEllipse < 1 || inLeftHair || inRightHair;
+
+  // ── FACE OVAL ── slightly narrower at top (temples), wider at cheeks, tapered jaw
+  // Use superellipse-ish: narrower top, full cheeks ~middle, pointed chin
+  let faceVal = 0;
+  if (ny >= -0.75 && ny <= 1.0) {
+    // Width varies by vertical position
+    let halfW;
+    if (ny < 0) {
+      // Forehead to cheeks: widen gently
+      halfW = 0.72 + ny * (-0.18); // narrower at top, wider mid
+    } else {
+      // Cheeks to chin: taper to point
+      halfW = 0.72 * (1 - ny * 0.78);
+    }
+    halfW = Math.max(0, halfW);
+    if (Math.abs(nx) < halfW) {
+      // Smooth edge fade
+      const edgeDist = 1 - Math.abs(nx) / halfW;
+      faceVal = Math.min(1, edgeDist * 3);
+    }
+  }
+
+  // ── NECK ──
+  const inNeck = Math.abs(nx) < 0.22 && ny > 0.82 && ny < 1.25;
+  const neckVal = inNeck ? 0.7 : 0;
+
+  // ── FEATURES — brightness peaks that create depth in halftone ──
+  let featureBoost = 0;
+
+  // Eyes — two almond zones, slightly tilted upward outer edge (cat-eye feel)
+  const leftEyeCx  = -0.30, eyeCy = -0.12;
+  const rightEyeCx =  0.30;
+  const eyeRx = 0.20, eyeRy = 0.09;
+  const leftEyeDist  = ((nx-leftEyeCx)/eyeRx)**2 + ((ny-eyeCy)/eyeRy)**2;
+  const rightEyeDist = ((nx-rightEyeCx)/eyeRx)**2 + ((ny-eyeCy)/eyeRy)**2;
+  if (leftEyeDist < 1 || rightEyeDist < 1) featureBoost = Math.max(featureBoost, 0.9);
+
+  // Nose bridge — subtle vertical ridge
+  const noseBridgeDist = Math.abs(nx) < 0.08 && ny > 0.1 && ny < 0.42 ? 0.4 : 0;
+  featureBoost = Math.max(featureBoost, noseBridgeDist);
+
+  // Nose tip — small oval
+  const noseTipDist = ((nx)/0.12)**2 + ((ny-0.44)/0.10)**2;
+  if (noseTipDist < 1) featureBoost = Math.max(featureBoost, 0.55);
+
+  // Lips — wide full upper lip, slightly fuller lower
+  const lipCy = 0.62;
+  const upperLipDist = (nx/0.30)**2 + ((ny-lipCy)/0.07)**2;
+  const lowerLipDist = (nx/0.26)**2 + ((ny-(lipCy+0.11))/0.09)**2;
+  const cupidBow = Math.abs(Math.abs(nx) - 0.10) < 0.08 && ny > lipCy - 0.04 && ny < lipCy + 0.01;
+  if (upperLipDist < 1 || lowerLipDist < 1 || cupidBow) featureBoost = Math.max(featureBoost, 0.85);
+
+  // Cheekbone highlights
+  const leftCheekDist  = ((nx+0.52)/0.18)**2 + ((ny-0.18)/0.14)**2;
+  const rightCheekDist = ((nx-0.52)/0.18)**2 + ((ny-0.18)/0.14)**2;
+  if (leftCheekDist < 1 || rightCheekDist < 1) featureBoost = Math.max(featureBoost, 0.35);
+
+  // ── COMBINE ──
+  const hairMask  = inHair  ? 0.55 : 0;
+  const combined  = Math.max(faceVal, hairMask, neckVal);
+  return { brightness: combined, feature: featureBoost };
+}
+
+function drawHalftone() {
+  const w = canvas.width / window.devicePixelRatio;
+  const h = canvas.height / window.devicePixelRatio;
+  ctx.clearRect(0, 0, w, h);
+
+  const rgb = hexToRgb(currentColor);
+  tick += 0.018;
+
+  const gridSize = currentMode === 'generative' ? 10 : 11;
+
+  // Background
+  const bg = ctx.createRadialGradient(w*0.5, h*0.4, 0, w*0.5, h*0.5, h*0.85);
+  bg.addColorStop(0, 'rgba(22,8,16,1)');
+  bg.addColorStop(1, 'rgba(5,5,6,1)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  // Ellipse centre for non-alter modes
+  const faceCx = w * 0.5;
+  const faceCy = h * 0.44;
+  const faceRx = w * 0.28;
+  const faceRy = h * 0.36;
+
+  for (let y = 0; y < h + gridSize; y += gridSize) {
+    for (let x = 0; x < w + gridSize; x += gridSize) {
+
+      let baseR = 0;
+      let alpha = 1;
+      const glitchX = (Math.random() > 0.97) ? (Math.random() - 0.5) * 5 : 0;
+
+      if (currentMode === 'alter') {
+        // ── FEMININE FACE HALFTONE ──
+        const { brightness, feature } = getFaceMask(x, y, w, h);
+        if (brightness < 0.05) continue;
+
+        // Animated brightness pulse
+        const pulse = Math.sin(tick * 1.1) * 0.06 + 1;
+        // Feature areas get bigger dots; hair gets medium; face gets wave-modulated
+        const wave = Math.sin(x * 0.05 + tick) * Math.cos(y * 0.04 + tick * 0.6) * 0.2;
+        const dotBrightness = Math.min(1, brightness * pulse + feature * 0.5 + wave * brightness);
+        baseR = dotBrightness * gridSize * 0.52 * intensity;
+        alpha = brightness;
+
+      } else if (currentMode === 'colour') {
+        const nx = (x - faceCx) / faceRx;
+        const ny = (y - faceCy) / faceRy;
+        const dist = Math.sqrt(nx*nx + ny*ny);
+        const wave = Math.sin(x * 0.04 + tick) * Math.cos(y * 0.03 + tick * 0.7) * 0.3;
+        baseR = dist < 1
+          ? (1 - dist * 0.5) * gridSize * 0.45 + wave * gridSize * 0.15
+          : gridSize * 0.1 * Math.max(0, 1 - (dist - 1) * 0.5);
+        baseR *= intensity;
+
+      } else if (currentMode === 'type') {
+        const nx = (x - faceCx) / faceRx;
+        const ny = (y - faceCy) / faceRy;
+        const dist = Math.sqrt(nx*nx + ny*ny);
+        const lineActive = (Math.floor(y / gridSize) % 3 === Math.floor(tick * 2) % 3);
+        baseR = lineActive ? gridSize * 0.38 * intensity : gridSize * 0.08;
+        alpha = dist < 1.2 ? 1 : 0.3;
+
+      } else {
+        // Generative
+        const nx = (x - faceCx) / faceRx;
+        const ny = (y - faceCy) / faceRy;
+        const dist = Math.sqrt(nx*nx + ny*ny);
+        const wave1 = Math.sin(x * 0.06 + tick * 1.2) * 0.5 + 0.5;
+        const wave2 = Math.cos(y * 0.05 + tick * 0.8) * 0.5 + 0.5;
+        baseR = ((wave1 + wave2) / 2) * gridSize * 0.44 * intensity;
+        alpha = dist < 1.5 ? 1 : 0.2;
+      }
+
+      if (baseR < 0.5) continue;
+
+      // Shadow layer (slight offset, darker)
+      ctx.beginPath();
+      ctx.arc(x + glitchX * 0.7, y, baseR * 0.82, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${rgb.r},${Math.floor(rgb.g * 0.2)},${Math.floor(rgb.b * 0.5)},${0.8 * alpha})`;
+      ctx.fill();
+
+      // Cyan glitch ghost
+      if (glitchX !== 0) {
+        ctx.beginPath();
+        ctx.arc(x + glitchX, y, baseR * 0.52, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0,245,255,0.55)`;
+        ctx.fill();
+      }
+
+      // Main dot
+      ctx.beginPath();
+      ctx.arc(x, y, baseR, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${0.72 * alpha * intensity})`;
+      ctx.fill();
+    }
+  }
+
+  // Radial glow bloom
+  const glow = ctx.createRadialGradient(faceCx, faceCy * 0.82, 0, faceCx, faceCy, faceRx * 1.3);
+  glow.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.14)`);
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, w, h);
+
+  animFrame = requestAnimationFrame(drawHalftone);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+drawHalftone();
+
+// ── MODE SELECTION ────────────────────────────────────────────────────────
+function selectMode(el, label, mode) {
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  currentMode = mode;
+  document.getElementById('hud-tl').innerHTML = `MODE: ${label}<br>SYNC: ${(97 + Math.random()*3).toFixed(1)}%<br>FPS: 120`;
+}
+
+// ── COLOUR SELECTION ──────────────────────────────────────────────────────
+function selectColor(el, hex) {
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  currentColor = hex;
+  document.getElementById('color-val').textContent = hex;
+}
+
+// ── SLIDERS ───────────────────────────────────────────────────────────────
+function scrubSlider(e, id) {
+  const track = e.currentTarget;
+  const rect = track.getBoundingClientRect();
+  let pct = Math.max(5, Math.min(100, Math.round(((e.clientX - rect.left) / rect.width) * 100)));
+  track.style.setProperty('--fill', pct + '%');
+  document.getElementById(id + '-thumb').style.left = pct + '%';
+  document.getElementById(id + '-val').textContent = pct + '%';
+  if (id === 'intensity') intensity = pct / 100;
+}
+
+// ── TOGGLES ───────────────────────────────────────────────────────────────
+function toggleSwitch(el) {
+  el.classList.toggle('on');
+}
+
+// ── ACTIVITY LOG SIMULATION ──────────────────────────────────────────────
+function addLogEntry() {
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `
+    <div class="log-dot green"></div>
+    <div class="log-text">
+      <strong>Recognition defeated</strong> — Scan attempt blocked. Identity remains unresolved.
+      <div class="log-time">Just now · ${currentMode.toUpperCase()} mode</div>
+    </div>`;
+  const log = document.getElementById('log-list');
+  log.insertBefore(item, log.firstChild);
+}
+setInterval(() => { if (Math.random() > 0.82) addLogEntry(); }, 8000);
+
+// ── CUSTOM MODAL ─────────────────────────────────────────────────────────
+function openCustom() {
+  alert('Custom projection upload — coming in VEIL OS 3.0');
+}
+
+// ── BOTTOM NAV ────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// ── LIVE CLOCK ─────────────────────────────────────────────────────────────
+function updateTime() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  document.querySelector('.status-time').textContent = h + ':' + m;
+}
+updateTime();
+setInterval(updateTime, 10000);
+
+// ── THREAT SIMULATION ─────────────────────────────────────────────────────
+const threatFills = document.querySelectorAll('.threat-bar-fill');
+const threatPcts = document.querySelectorAll('.threat-bar-pct');
+setInterval(() => {
+  const vals = [
+    Math.floor(15 + Math.random() * 30),
+    Math.floor(45 + Math.random() * 40),
+    Math.floor(10 + Math.random() * 25),
+    Math.floor(2 + Math.random() * 12)
+  ];
+  vals.forEach((v, i) => {
+    threatFills[i].style.width = v + '%';
+    threatPcts[i].textContent = v + '%';
+  });
+}, 4500);
+
+// ── HUD FLICKER ──────────────────────────────────────────────────────────
+setInterval(() => {
+  const syncVal = (97 + Math.random() * 3).toFixed(1);
+  const fps = Math.random() > 0.8 ? 118 : 120;
+  document.getElementById('hud-tl').innerHTML =
+    `MODE: ${currentMode.toUpperCase()}<br>SYNC: ${syncVal}%<br>FPS: ${fps}`;
+  const lat = (0.3 + Math.random() * 0.3).toFixed(1);
+  const temp = (35.8 + Math.random() * 0.8).toFixed(1);
+  document.getElementById('hud-br').innerHTML =
+    `TEMP: ${temp}°C<br>LAT: ${lat}ms<br>ΘLOCK: ON`;
+}, 2800);
+</script>
+</body>
+</html>
